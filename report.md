@@ -2,6 +2,7 @@
 
 Group Members:                    
 Student ID:          
+Contribution:
 
 Note: Only leave sections blank if they are not yet implemented. We will verify that your code matches the data in your report. Any inconsistencies will result in double point deductions.
 
