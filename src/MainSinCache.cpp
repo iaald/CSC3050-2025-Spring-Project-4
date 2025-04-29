@@ -9,13 +9,22 @@
 #include "Debug.h"
 #include "MemoryManager.h"
 
+class ICache : public Cache {
+  public:
+    //Constructor
+    ICache(MemoryManager *manager, Policy policy, Cache *lowerCache) : Cache(manager, policy, lowerCache){ }
+    void setByte(uint32_t addr, uint8_t val, uint32_t *cycles = nullptr){return;}
+  };
 bool parseParameters(int argc, char **argv);
 void printUsage();
-void simulateCache(std::ofstream &csvFile, uint32_t cacheSize,
+void runSplit(std::ofstream &csvFile, uint32_t cacheSize,
+                   uint32_t blockSize, uint32_t associativity);
+void runUnified(std::ofstream &csvFile, uint32_t cacheSize,
                    uint32_t blockSize, uint32_t associativity);
 
 bool verbose = false;
 bool isSingleStep = false;
+bool isSplit = false;
 const char *traceFilePath;
 
 int main(int argc, char **argv) {
@@ -25,21 +34,10 @@ int main(int argc, char **argv) {
 
   // Open CSV file and write header
   std::ofstream csvFile(std::string(traceFilePath) + ".csv");
-  csvFile << "cacheSize,blockSize,associativity,missRate,totalCycles\n";
+  csvFile << "splitOrUnified,cacheSize,blockSize,associativity,missCount,totalCycles\n";
 
-  for (uint32_t cacheSize = 4 * 1024; cacheSize <= 1024 * 1024;
-       cacheSize *= 4) {
-    for (uint32_t blockSize = 32; blockSize <= 256; blockSize *= 2) {
-      for (uint32_t associativity = 2; associativity <= 32;
-           associativity *= 2) {
-        uint32_t blockNum = cacheSize / blockSize;
-        if (blockNum % associativity != 0)
-          continue;
-
-        simulateCache(csvFile, cacheSize, blockSize, associativity);
-      }
-    }
-  }
+  runSplit(csvFile, 8 * 1024, 64, 1);
+  runUnified(csvFile, 16 * 1024, 64, 1);
 
   printf("Result has been written to %s\n",
          (std::string(traceFilePath) + ".csv").c_str());
@@ -93,7 +91,91 @@ Cache::Policy createSingleLevelPolicy(uint32_t cacheSize,
     return policy;
 }
 
-void simulateCache(std::ofstream &csvFile, uint32_t cacheSize,
+void runSplit(std::ofstream &csvFile, uint32_t cacheSize,
+                   uint32_t blockSize, uint32_t associativity) {
+    auto policy = createSingleLevelPolicy(cacheSize, blockSize, associativity);
+
+    MemoryManager *memory = nullptr;
+    ICache *icache = nullptr;
+    Cache *dcache = nullptr;
+    memory = new MemoryManager();
+    icache = new ICache(memory, policy, nullptr);
+    dcache = new Cache(memory, policy, nullptr);
+
+    icache->printInfo(false);
+    dcache->printInfo(false);
+    // Read and execute trace in cache-trace/ folder
+    std::ifstream trace(traceFilePath);
+    if (!trace.is_open()) {
+      printf("Unable to open file %s\n", traceFilePath);
+      exit(-1);
+    }
+
+    char op; //'r' for read, 'w' for write
+    uint32_t addr;
+    char type;
+    while (trace >> op >> std::hex >> addr >> type) {
+      if (verbose)
+        printf("%c %x\n", op, addr);
+      if (!memory->isPageExist(addr))
+        memory->addPage(addr);
+      switch (op) {
+      case 'r':
+        switch (type) {
+        case 'I':
+          icache->getByte(addr);
+          break;
+        case 'D':
+          dcache->getByte(addr);
+          break;
+        default:
+          dbgprintf("Illegal type %c\n", type);
+          exit(-1);
+        }
+        break;
+      case 'w':
+        switch (type) {
+        case 'I':
+          icache->setByte(addr, 0);
+          break;
+        case 'D':
+          dcache->setByte(addr, 0);
+          break;
+        default:
+          dbgprintf("Illegal type %c\n", type);
+          exit(-1);
+        }
+        break;
+      default:
+        dbgprintf("Illegal op %c\n", op);
+        exit(-1);
+      }
+
+      if (verbose) {
+        icache->printInfo(true);
+        dcache->printInfo(true);
+      }
+
+      if (isSingleStep) {
+        printf("Press Enter to Continue...");
+        getchar();
+      }
+    }
+
+    // Output Simulation Results
+    icache->printStatistics();
+    dcache->printStatistics();
+
+    csvFile << "Split," << icache->statistics.numMiss + dcache->statistics.numMiss << ","
+            << std::max(icache->statistics.totalCycles, dcache->statistics.totalCycles)
+            << std::endl;
+
+    delete icache;
+    delete dcache;
+    delete memory;
+}
+
+void runUnified(std::ofstream &csvFile, uint32_t cacheSize,
                    uint32_t blockSize, uint32_t associativity) {
     auto policy = createSingleLevelPolicy(cacheSize, blockSize, associativity);
 
@@ -101,7 +183,6 @@ void simulateCache(std::ofstream &csvFile, uint32_t cacheSize,
     Cache *cache = nullptr;
     memory = new MemoryManager();
     cache = new Cache(memory, policy, nullptr);
-    memory->setCache(cache);
     cache->printInfo(false);
 
     // Read and execute trace in cache-trace/ folder
@@ -113,7 +194,8 @@ void simulateCache(std::ofstream &csvFile, uint32_t cacheSize,
 
     char op; //'r' for read, 'w' for write
     uint32_t addr;
-    while (trace >> op >> std::hex >> addr) {
+    char type;
+    while (trace >> op >> std::hex >> addr >> type) {
       if (verbose)
         printf("%c %x\n", op, addr);
       if (!memory->isPageExist(addr))
@@ -141,10 +223,9 @@ void simulateCache(std::ofstream &csvFile, uint32_t cacheSize,
 
     // Output Simulation Results
     cache->printStatistics();
-    float missRate = (float)cache->statistics.numMiss /
-                     (cache->statistics.numHit + cache->statistics.numMiss);
-    csvFile << cacheSize << "," << blockSize << "," << associativity << ","
-            << missRate << "," << cache->statistics.totalCycles << std::endl;
+
+    csvFile << "Unified," << cache->statistics.numMiss
+            << "," << cache->statistics.totalCycles << std::endl;
 
     delete cache;
     delete memory;
