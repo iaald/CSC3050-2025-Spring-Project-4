@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <queue>
 #include "MemoryManager.h"
 
 class MemoryManager;
@@ -72,12 +73,14 @@ public:
     uint8_t read(uint32_t addr, bool flag = false) override;
     void write(uint32_t addr, uint8_t val) override;
 
+    bool isFIFO;
 private:
     uint32_t referenceCounter;
     MemoryManager *memory;
     Cache *lowerCache;
     Policy policy;
     std::vector<Block> blocks;
+    std::queue<uint32_t> fifo_queue;
 
     void initCache();
     void loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles);

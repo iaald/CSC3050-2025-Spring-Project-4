@@ -84,8 +84,8 @@ By analyzing the data, we can discover the following several phenomena:
 | ----------- | --------------- | ---------- | --------- | ------------------ |
 | test1.trace | No Optimization |            |           |       None         |
 | test1.trace |                 |            |           |     0.371%         |
-| test2.trace | No Optimization |            |           |       None         |
-| test2.trace |                 |            |           |    5.803%          |
+| test2.trace | No Optimization |   100013   |   98.532% |       None         |
+| test2.trace | Pre-fetching    |     1272   |    1.253% |    5.803%          |
 | test3.trace | No Optimization |            |           |       None         |
 | test3.trace |                 |            |           |   0.372%           |
 

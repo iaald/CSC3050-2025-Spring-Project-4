@@ -233,6 +233,7 @@ void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
   }
 
   this->blocks[replaceId] = b;
+  this->fifo_queue.push(replaceId);
 }
 
 uint32_t Cache::getReplacementBlockId(uint32_t begin, uint32_t end) {
@@ -241,7 +242,11 @@ uint32_t Cache::getReplacementBlockId(uint32_t begin, uint32_t end) {
     if (!this->blocks[i].valid)
       return i;
   }
-
+  if(this->isFIFO) {
+    uint32_t resultId = this->fifo_queue.front();
+    this->fifo_queue.pop();
+    return resultId;
+  }
   // Otherwise use LRU
   uint32_t resultId = begin;
   uint32_t min = this->blocks[begin].lastReference;
