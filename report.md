@@ -82,8 +82,8 @@ By analyzing the data, we can discover the following several phenomena:
 
 | Trace       | Optimization    | Miss Count | Miss Rate | Expected Miss Rate |
 | ----------- | --------------- | ---------- | --------- | ------------------ |
-| test1.trace | No Optimization |            |           |       None         |
-| test1.trace |                 |            |           |     0.371%         |
+| test1.trace | No Optimization |   102656   |    99.26% |       None         |
+| test1.trace | FIFO            |      384   |   0.3713% |     0.371%         |
 | test2.trace | No Optimization |   100013   |   98.532% |       None         |
 | test2.trace | Pre-fetching    |     1272   |    1.253% |    5.803%          |
 | test3.trace | No Optimization |            |           |       None         |
@@ -96,10 +96,10 @@ By analyzing the data, we can discover the following several phenomena:
 
 | Implementation | Read Count | Write Count | Hit Count | Miss Count | Miss Rate | Total Cycles |
 |----------------|------------|-------------|-----------|------------|-----------|--------------|
-| matmul0 |         |         |         |           |         |         |
-| matmul1 |         |         |         |           |         |         |
-| matmul2 |         |         |         |           |         |         |
-| matmul3 |         |         |         |           |         |         |
-| matmul4 |         |         |         |           |         |         |
+| matmul0        |   786432   |   262144    |   716581  |    331995  |   31.66%  |   3665589    |
+| matmul1        |   528384   |   4096      |   258741  |    273739  |   51.41%  |   2480901    |
+| matmul2        |   786432   |   262144    |   933157  |    115419  |   11.01%  |   2378661    |
+| matmul3        |   786432   |   262144    |   471776  |    576800  |   55.01%  |   7183072    |
+| matmul4        |   532480   |   8192      |   514453  |    26219   |   4.85%   |   785373     |
 
 ### 4.2 Analysis of Performance Differences between matmul1, 2, 3
