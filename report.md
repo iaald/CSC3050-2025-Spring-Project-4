@@ -1,8 +1,8 @@
 # CSC3050 Project 4: Cache Simulator Report
 
-Group Members:                    
-Student ID:          
-Contribution:
+Group Members: Runyuan He, Mingshi Deng
+Student ID: 123090163, 123090081
+Contribution: 50%, 50%
 
 Note: Only leave sections blank if they are not yet implemented. We will verify that your code matches the data in your report. Any inconsistencies will result in double point deductions.
 
@@ -12,22 +12,43 @@ Note: Only leave sections blank if they are not yet implemented. We will verify 
 
 ### 1.1 Split Cache Design
 
-Description of how the split cache (ICache and DCache) is implemented and the main differences compared to unified cache.
+Split cache is a way of organizing the cache in computer, where cache is split into ICache and DCache. Instruction Cache (ICache) is dedicated to storing instructions, and Data Cache (DCache) is dedicated to storing data. Unified cache does not have such split.
+
+While unified cache has one access path, split cache allows the acquisition of instructions and data to be carried out in parallel, accelerating memory access by increasing throughput.
 
 ### 1.2 Implementation Details
 
-Detailed explanation of key implementation methods, especially the design of the ICache class and the simulation method for parallel access.
+ICache is similar to DCache, except that since instructions are usually unmodifiable, ICache is read-only, which means it should not consider/support the $\texttt{setByte()}$ function.
+
+To simulate parallel access, we assume start fetching both caches at same time, the overall consumption should be:
+$$
+\text{Total Cycle} = \max(\text{TotalCycle}_{I}, \text{TotalCycle}_{D})
+$$
+That is, the total time consumption depends on the value that takes longer in the two caches.
 
 ### 1.3 Result Analysis
 
 | Trace File | Cache Type    | Miss Count | Expected Miss Count | Total Cycles | Expected Total Cycles |
 | ---------- | ------------- | ---------- | ------------------- | ------------ | --------------------- |
-| I.trace    | Split Cache   |            |         512         |              |    41088              |
-| I.trace    | Unified Cache |            |      384            |              |    54912              |
-| D.trace    | Split Cache   |            |     634             |              |    67584              |
-| D.trace    | Unified Cache |            |    507              |              |    68141              |
+| I.trace    | Split Cache   |     512    |         512         |    41088     |    41088              |
+| I.trace    | Unified Cache |     384    |         384         |    54912     |    54912              |
+| D.trace    | Split Cache   |     634    |         634         |    67584     |    67584              |
+| D.trace    | Unified Cache |     507    |         507         |    68141     |    68141              |
 
-Analysis of performance differences between split cache and unified cache for different trace files, explaining the observed results.
+By analyzing the data, we can discover the following several phenomena:
+
+* Using Split cache makes the miss count of test results of different trace files increase.
+
+  > Instructions are relatively continuous in memory, so the cache hit rate of instructions is higher. After using split cache, the size of i-cache limits the amount of instruction cache, and reducing the hit rate.
+
+* The rate of growth of miss count for I_Trace is higher than that of D_Trace.
+
+  > Therefore, if the proportion of instructions in the total access is higher, this impact will be correspondingly greater.
+
+* Using Split cache makes the total cycles of test results of different trace files decrease.
+
+  > By increasing the throughput, split cache reduces the total cycles.
+
 
 ## 2. Part 2
 
@@ -41,11 +62,11 @@ Analysis of performance differences between split cache and unified cache for di
 
 ### My Results after bug fixed:
 
-| Cache Level | Read Count | Write Count | Hit Count | Miss Count  | Miss Rate  | Total Cycles |
-| ----------- | ---------- | ----------- | --------- | ----------- | --------- | ------------ |
-| L1          |            |             |           |             |           |              |
-| L2          |            |             |           |             |           |              |
-| L3          |            |             |           |             |           |              |
+| Cache Level | Read Count | Write Count | Hit Count | Miss Count | Miss Rate | Total Cycles |
+| ----------- | ---------- | ----------- | --------- | ---------- | --------- | ------------ |
+| L1          |            |             | 177,911   | 54,700     | 23.5%     | 717,519      |
+| L2          |            |             | 25,608    | 29,092     | 53.2%     | 886,984      |
+| L3          |            |             | 21,562    | 7,530      | 25.9%     | 1,184,240    |
 
 
 ## 3. Part 3
