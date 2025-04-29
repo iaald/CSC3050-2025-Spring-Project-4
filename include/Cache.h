@@ -9,7 +9,7 @@ class MemoryManager;
 
 class ICacheAccess {
 public:
-    virtual uint8_t read(uint32_t addr) = 0;
+    virtual uint8_t read(uint32_t addr, bool flag = false) = 0;
     virtual void write(uint32_t addr, uint8_t val) = 0;
     virtual ~ICacheAccess() = default;
 };
@@ -62,14 +62,14 @@ public:
 
     bool inCache(uint32_t addr);
     uint32_t getBlockId(uint32_t addr);
-    uint8_t getByte(uint32_t addr, uint32_t *cycles = nullptr, bool *flag = nullptr);
-    void setByte(uint32_t addr, uint8_t val, uint32_t *cycles = nullptr, bool *flag = nullptr);
+    uint8_t getByte(uint32_t addr, uint32_t *cycles = nullptr, bool flag = false);
+    void setByte(uint32_t addr, uint8_t val, uint32_t *cycles = nullptr);
 
     void printInfo(bool verbose);
     void printStatistics();
     Statistics statistics;
 
-    uint8_t read(uint32_t addr) override;
+    uint8_t read(uint32_t addr, bool flag = false) override;
     void write(uint32_t addr, uint8_t val) override;
 
 private:

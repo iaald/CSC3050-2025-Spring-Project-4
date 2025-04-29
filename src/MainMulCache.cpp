@@ -14,6 +14,16 @@
 bool parseParameters(int argc, char **argv);
 void printUsage();
 
+bool isPreFetching = false;
+bool isFIFO = false;
+bool isVictimCache = false;
+
+bool ispf = false;
+uint32_t lastAddr = 0;
+int sameStrideCount = 1;
+int differentStrideCount = 1;
+uint32_t lastStride = 0;
+
 const char *traceFilePath;
 
 class CacheHierarchy {
@@ -59,6 +69,29 @@ public:
                 break;
             default:
                 throw std::runtime_error("Illegal memory access operation");
+        }
+        if (isPreFetching) {
+            uint32_t currentStride = static_cast<int>(addr - lastAddr);
+            if (currentStride == lastStride) {
+                sameStrideCount ++;
+                differentStrideCount = 1;
+            } else {
+                differentStrideCount++;
+                sameStrideCount = 1;
+            }
+            lastStride = currentStride;
+            if (!ispf && sameStrideCount > 3)
+                ispf = true;
+            if (ispf && differentStrideCount > 3)
+                ispf = false;
+            if (ispf) {
+                uint32_t prefetchAddr = addr + lastStride;
+                if (!memory->isPageExist(prefetchAddr)) {
+                    memory->addPage(prefetchAddr);
+                }
+                l1cache->read(prefetchAddr, true);
+            }
+            lastAddr = addr;
         }
     }
 
@@ -145,12 +178,33 @@ int main(int argc, char **argv) {
 
 bool parseParameters(int argc, char **argv) {
   // Read Parameters
-  if (argc > 1) {
-    traceFilePath = argv[1];
-    return true;
-  } else {
+  for (int i = 1; i < argc; ++i) {
+    if (argv[i][0] == '-') {
+      switch (argv[i][1]) {
+      case 'p':
+        isPreFetching = 1;
+        break;
+      case 'f':
+        isFIFO = 1;
+        break;
+      case 'v':
+        isVictimCache = 1;
+        break;
+      default:
+        return false;
+      }
+    } else {
+      if (traceFilePath == nullptr) {
+        traceFilePath = argv[i];
+      } else {
+        return false;
+      }
+    }
+  }
+  if (traceFilePath == nullptr) {
     return false;
   }
+  return true;
 }
 
 void printUsage() { printf("Usage: CacheSim trace-file\n"); }

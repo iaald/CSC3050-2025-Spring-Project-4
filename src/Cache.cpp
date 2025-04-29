@@ -42,28 +42,30 @@ uint32_t Cache::getBlockId(uint32_t addr) {
   return -1;
 }
 
-uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles, bool *flag) {
+uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles, bool flag) {
   this->referenceCounter++;
-  this->statistics.numRead++;
-
+  if (!flag) {
+    this->statistics.numRead++;
+  }
   // If in cache, return directly
   int blockId;
   if ((blockId = this->getBlockId(addr)) != -1) {
     uint32_t offset = this->getOffset(addr);
-    if (flag)
-      *flag = true;
-    this->statistics.numHit++;
-    this->statistics.totalCycles += this->policy.hitLatency;
+    if (!flag) {
+      this->statistics.numHit++;
+      this->statistics.totalCycles += this->policy.hitLatency;
+    }
     this->blocks[blockId].lastReference = this->referenceCounter;
     if (cycles) *cycles = this->policy.hitLatency;
     return this->blocks[blockId].data[offset];
   }
 
   // Else, find the data in memory or other level of cache
-  if (flag)
-    *flag = false;
-  this->statistics.numMiss++;
-  this->statistics.totalCycles += this->policy.missLatency;
+  if (!flag) {
+    this->statistics.numMiss++;
+    this->statistics.totalCycles += this->policy.missLatency;
+  }
+
   this->loadBlockFromLowerLevel(addr, cycles);
 
   // The block is in top level cache now, return directly
@@ -77,16 +79,13 @@ uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles, bool *flag) {
   }
 }
 
-void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles, bool *flag) {
+void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles) {
   this->referenceCounter++;
   this->statistics.numWrite++;
-
   // If in cache, write to it directly
   int blockId;
   if ((blockId = this->getBlockId(addr)) != -1) {
     uint32_t offset = this->getOffset(addr);
-    if (flag)
-      *flag = true;
     this->statistics.numHit++;
     this->statistics.totalCycles += this->policy.hitLatency;
     this->blocks[blockId].modified = true;
@@ -98,8 +97,6 @@ void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles, bool *flag) {
   }
 
   // Else, load the data from cache
-  if (flag)
-    *flag = false;
   this->statistics.numMiss++;
   this->statistics.totalCycles += this->policy.missLatency;
 
@@ -215,9 +212,8 @@ void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
       b.data[i - blockAddrBegin] = this->memory->getByteNoCache(i);
       if (cycles) *cycles = 100;
     } else {
-      bool flag = false;
-      b.data[i - blockAddrBegin] = this->lowerCache->getByte(i, cycles, &flag);
-      if (i != blockAddrBegin && flag) {
+      b.data[i - blockAddrBegin] = this->lowerCache->getByte(i, cycles);
+      if (i != blockAddrBegin) {
         this->lowerCache->statistics.numHit--;
         this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
       }
@@ -266,15 +262,9 @@ void Cache::writeBlockToLowerLevel(Cache::Block &b) {
     }
   } else {
     for (uint32_t i = 0; i < b.size; ++i) {
-      bool flag = false;
-      this->lowerCache->setByte(addrBegin + i, b.data[i], nullptr, &flag);
-      if (flag) {
-        this->lowerCache->statistics.numHit--;
-        this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
-      } else {
-        this->lowerCache->statistics.numMiss--;
-        this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.missLatency;
-      }
+      this->lowerCache->setByte(addrBegin + i, b.data[i], nullptr);
+      this->lowerCache->statistics.numHit--;
+      this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
     }
   }
 }
@@ -320,9 +310,9 @@ uint32_t Cache::getAddr(Cache::Block &b) {
   return (b.tag << (offsetBits + idBits)) | (b.id << offsetBits);
 }
 
-uint8_t Cache::read(uint32_t addr) {
+uint8_t Cache::read(uint32_t addr, bool flag) {
     uint32_t cycles;
-    return getByte(addr, &cycles);
+    return getByte(addr, &cycles, flag);
 }
 
 void Cache::write(uint32_t addr, uint8_t val) {
