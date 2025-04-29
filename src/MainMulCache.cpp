@@ -41,7 +41,7 @@ public:
         auto l2policy = MultiLevelCacheConfig::getL2Policy();
         auto l3policy = MultiLevelCacheConfig::getL3Policy();
         if(isFIFO){
-            l1policy.associativity = 64;
+            l1policy.associativity = 256;
         }
         l3cache = new Cache(memory, l3policy, nullptr);
         l2cache = new Cache(memory, l2policy, l3cache);
