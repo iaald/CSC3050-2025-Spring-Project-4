@@ -1,7 +1,9 @@
 # CSC3050 Project 4: Cache Simulator Report
 
 Group Members: Runyuan He, Mingshi Deng
+
 Student ID: 123090163, 123090081
+
 Contribution: 50%, 50%
 
 Note: Only leave sections blank if they are not yet implemented. We will verify that your code matches the data in your report. Any inconsistencies will result in double point deductions.
@@ -21,9 +23,11 @@ While unified cache has one access path, split cache allows the acquisition of i
 ICache is similar to DCache, except that since instructions are usually unmodifiable, ICache is read-only, which means it should not consider/support the $\texttt{setByte()}$ function.
 
 To simulate parallel access, we assume start fetching both caches at same time, the overall consumption should be:
+
 $$
-\text{Total Cycle} = \max(\text{TotalCycle}_{I}, \text{TotalCycle}_{D})
+\text{Total Cycle} = \max (TotalCycle_{I}, TotalCycle_{D})
 $$
+
 That is, the total time consumption depends on the value that takes longer in the two caches.
 
 ### 1.3 Result Analysis
