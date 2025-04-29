@@ -60,3 +60,6 @@ Makefile
 .Trashes
 ehthumbs.db
 Thumbs.db 
+
+#PINTool
+PINTool/
