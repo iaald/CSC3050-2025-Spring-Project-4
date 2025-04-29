@@ -42,7 +42,7 @@ uint32_t Cache::getBlockId(uint32_t addr) {
   return -1;
 }
 
-uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles) {
+uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles, bool *flag) {
   this->referenceCounter++;
   this->statistics.numRead++;
 
@@ -50,6 +50,8 @@ uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles) {
   int blockId;
   if ((blockId = this->getBlockId(addr)) != -1) {
     uint32_t offset = this->getOffset(addr);
+    if (flag)
+      *flag = true;
     this->statistics.numHit++;
     this->statistics.totalCycles += this->policy.hitLatency;
     this->blocks[blockId].lastReference = this->referenceCounter;
@@ -58,6 +60,8 @@ uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles) {
   }
 
   // Else, find the data in memory or other level of cache
+  if (flag)
+    *flag = false;
   this->statistics.numMiss++;
   this->statistics.totalCycles += this->policy.missLatency;
   this->loadBlockFromLowerLevel(addr, cycles);
@@ -73,7 +77,7 @@ uint8_t Cache::getByte(uint32_t addr, uint32_t *cycles) {
   }
 }
 
-void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles) {
+void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles, bool *flag) {
   this->referenceCounter++;
   this->statistics.numWrite++;
 
@@ -81,6 +85,8 @@ void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles) {
   int blockId;
   if ((blockId = this->getBlockId(addr)) != -1) {
     uint32_t offset = this->getOffset(addr);
+    if (flag)
+      *flag = true;
     this->statistics.numHit++;
     this->statistics.totalCycles += this->policy.hitLatency;
     this->blocks[blockId].modified = true;
@@ -92,6 +98,8 @@ void Cache::setByte(uint32_t addr, uint8_t val, uint32_t *cycles) {
   }
 
   // Else, load the data from cache
+  if (flag)
+    *flag = false;
   this->statistics.numMiss++;
   this->statistics.totalCycles += this->policy.missLatency;
 
@@ -138,11 +146,11 @@ void Cache::printStatistics() {
   printf("Num Write: %d\n", this->statistics.numWrite);
   printf("Num Hit: %d\n", this->statistics.numHit);
   printf("Num Miss: %d\n", this->statistics.numMiss);
-  
+
   float totalAccess = this->statistics.numHit + this->statistics.numMiss;
   float missRate = totalAccess > 0 ? (this->statistics.numMiss * 100.0f / totalAccess) : 0.0f;
   printf("Miss Rate: %.2f%%\n", missRate);
-  
+
   printf("Total Cycles: %lu\n", this->statistics.totalCycles);
   if (this->lowerCache != nullptr) {
     printf("---------- LOWER CACHE ----------\n");
@@ -206,8 +214,14 @@ void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
     if (this->lowerCache == nullptr) {
       b.data[i - blockAddrBegin] = this->memory->getByteNoCache(i);
       if (cycles) *cycles = 100;
-    } else 
-      b.data[i - blockAddrBegin] = this->lowerCache->getByte(i, cycles);
+    } else {
+      bool flag = false;
+      b.data[i - blockAddrBegin] = this->lowerCache->getByte(i, cycles, &flag);
+      if (i != blockAddrBegin && flag) {
+        this->lowerCache->statistics.numHit--;
+        this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
+      }
+    }
   }
 
   // Find replace block
@@ -216,7 +230,7 @@ void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
   uint32_t blockIdEnd = (id + 1) * this->policy.associativity;
   uint32_t replaceId = this->getReplacementBlockId(blockIdBegin, blockIdEnd);
   Block replaceBlock = this->blocks[replaceId];
-  
+
   if (replaceBlock.valid && replaceBlock.modified) {
     this->writeBlockToLowerLevel(replaceBlock);
     this->statistics.totalCycles += this->policy.missLatency;
@@ -252,7 +266,15 @@ void Cache::writeBlockToLowerLevel(Cache::Block &b) {
     }
   } else {
     for (uint32_t i = 0; i < b.size; ++i) {
-      this->lowerCache->setByte(addrBegin + i, b.data[i]);
+      bool flag = false;
+      this->lowerCache->setByte(addrBegin + i, b.data[i], nullptr, &flag);
+      if (flag) {
+        this->lowerCache->statistics.numHit--;
+        this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
+      } else {
+        this->lowerCache->statistics.numMiss--;
+        this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.missLatency;
+      }
     }
   }
 }

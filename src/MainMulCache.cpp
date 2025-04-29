@@ -26,30 +26,30 @@ private:
 public:
     CacheHierarchy() {
         memory = new MemoryManager();
-        
+
         auto l1policy = MultiLevelCacheConfig::getL1Policy();
         auto l2policy = MultiLevelCacheConfig::getL2Policy();
         auto l3policy = MultiLevelCacheConfig::getL3Policy();
-        
+
         l3cache = new Cache(memory, l3policy, nullptr);
         l2cache = new Cache(memory, l2policy, l3cache);
         l1cache = new Cache(memory, l1policy, l2cache);
-        
+
         memory->setCache(l1cache);
     }
-    
+
     ~CacheHierarchy() {
         delete l1cache;
         delete l2cache;
         delete l3cache;
         delete memory;
     }
-    
+
     void processMemoryAccess(char op, uint32_t addr) {
         if (!memory->isPageExist(addr)) {
             memory->addPage(addr);
         }
-        
+
         switch (op) {
             case 'r':
                 l1cache->read(addr);
@@ -70,14 +70,15 @@ public:
     void outputResults() const {
 
         printResults();
-        
+
         std::string csvPath = std::string(traceFilePath) + "_multi_level.csv";
         std::ofstream csvFile(csvPath);
-        
+
         csvFile << "Level,NumReads,NumWrites,NumHits,NumMisses,MissRate,TotalCycles\n";
 
-        // Just write L1 statistic into the table
         outputCacheStats(csvFile, "L1");
+        outputCacheStats(csvFile, "L2");
+        outputCacheStats(csvFile, "L3");
 
         csvFile.close();
         printf("\nResults have been written to %s\n", csvPath.c_str());
@@ -85,9 +86,22 @@ public:
 private:
     void outputCacheStats(std::ofstream& csvFile, const char* level) const {
         auto& stats = l1cache->statistics;
-        float missRate = static_cast<float>(stats.numMiss) / 
+        switch(level[1]) {
+        case '1':
+            stats = l1cache->statistics;
+            break;
+        case '2':
+            stats = l2cache->statistics;
+            break;
+        case '3':
+            stats = l3cache->statistics;
+            break;
+        default:
+            throw std::runtime_error("Invalid cache level");
+        }
+        float missRate = static_cast<float>(stats.numMiss) /
                         (stats.numHit + stats.numMiss) * 100;
-        
+
         csvFile << level << ","
                 << stats.numRead << ","
                 << stats.numWrite << ","
@@ -114,13 +128,13 @@ int main(int argc, char **argv) {
         CacheHierarchy cacheHierarchy;
         char op;
         uint32_t addr;
-        
+
         while (trace >> op >> std::hex >> addr) {
             cacheHierarchy.processMemoryAccess(op, addr);
         }
-        
+
         cacheHierarchy.outputResults();
-    } 
+    }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return -1;

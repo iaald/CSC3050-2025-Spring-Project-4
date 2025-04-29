@@ -62,8 +62,8 @@ public:
 
     bool inCache(uint32_t addr);
     uint32_t getBlockId(uint32_t addr);
-    uint8_t getByte(uint32_t addr, uint32_t *cycles = nullptr);
-    void setByte(uint32_t addr, uint8_t val, uint32_t *cycles = nullptr);
+    uint8_t getByte(uint32_t addr, uint32_t *cycles = nullptr, bool *flag = nullptr);
+    void setByte(uint32_t addr, uint8_t val, uint32_t *cycles = nullptr, bool *flag = nullptr);
 
     void printInfo(bool verbose);
     void printStatistics();
