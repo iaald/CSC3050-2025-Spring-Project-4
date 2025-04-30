@@ -74,6 +74,8 @@ public:
     void write(uint32_t addr, uint8_t val) override;
 
     bool isFIFO;
+    bool isVictimCache;
+    Cache* victimCache;
 private:
     uint32_t referenceCounter;
     MemoryManager *memory;
@@ -86,6 +88,7 @@ private:
     void loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles);
     uint32_t getReplacementBlockId(uint32_t begin, uint32_t end);
     void writeBlockToLowerLevel(Block &b);
+    void writeBlockToVictim(Block &b);
     // Utility Functions
     bool isPolicyValid();
     bool isPowerOfTwo(uint32_t n);

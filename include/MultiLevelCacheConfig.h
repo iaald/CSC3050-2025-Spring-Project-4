@@ -37,6 +37,17 @@ public:
         policy.missLatency = 100;
         return policy;
     }
+
+    static Cache::Policy getVictimPolicy() {
+        Cache::Policy policy;
+        policy.cacheSize = 8 * 1024;
+        policy.blockSize = 64;
+        policy.blockNum = policy.cacheSize / policy.blockSize;
+        policy.associativity = policy.blockNum;
+        policy.hitLatency = 1;
+        policy.missLatency = 8;
+        return policy;
+    }
 };
 
 #endif

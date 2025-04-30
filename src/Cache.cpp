@@ -195,6 +195,41 @@ void Cache::initCache() {
 
 void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
   uint32_t blockSize = this->policy.blockSize;
+  if (this->isVictimCache) {
+    uint32_t vicBlockId = this->victimCache->getBlockId(addr);
+    if (vicBlockId != -1) {
+      uint32_t id = this->getId(addr);
+      uint32_t blockIdBegin = id * this->policy.associativity;
+      uint32_t blockIdEnd = (id + 1) * this->policy.associativity;
+      uint32_t replaceId = this->getReplacementBlockId(blockIdBegin, blockIdEnd);
+
+      Block b;
+      b.valid = this->blocks[replaceId].valid;
+      b.data = std::vector<uint8_t>(blockSize);
+      for (uint32_t i = 0; i < blockSize; ++i)
+        b.data[i] = this->blocks[replaceId].data[i];
+
+      uint32_t replaceAddr = this->getAddr(this->blocks[replaceId]);
+
+      this->blocks[replaceId].valid = this->victimCache->blocks[vicBlockId].valid;
+      this->blocks[replaceId].tag = this->getTag(addr);
+      this->blocks[replaceId].id = this->getId(addr);
+      for (uint32_t i = 0; i < blockSize; ++i)
+        this->blocks[replaceId].data[i] = this->victimCache->blocks[vicBlockId].data[i];
+
+      this->victimCache->blocks[vicBlockId].valid = b.valid;
+      this->victimCache->blocks[vicBlockId].tag = this->victimCache->getTag(replaceAddr);
+      this->victimCache->blocks[vicBlockId].id = this->victimCache->getId(replaceAddr);
+      for (uint32_t i = 0; i < blockSize; ++i)
+        this->victimCache->blocks[vicBlockId].data[i] = b.data[i];
+
+      this->statistics.numHit++;
+      this->statistics.totalCycles += this->policy.hitLatency;
+      this->statistics.numMiss--;
+      this->statistics.totalCycles -= this->policy.missLatency;
+      return;
+    }
+  }
 
   // Initialize new block from memory
   Block b;
@@ -226,6 +261,9 @@ void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
   uint32_t blockIdEnd = (id + 1) * this->policy.associativity;
   uint32_t replaceId = this->getReplacementBlockId(blockIdBegin, blockIdEnd);
   Block replaceBlock = this->blocks[replaceId];
+
+  if (this->isVictimCache)
+    this->writeBlockToVictim(replaceBlock);
 
   if (replaceBlock.valid && replaceBlock.modified) {
     this->writeBlockToLowerLevel(replaceBlock);
@@ -272,6 +310,17 @@ void Cache::writeBlockToLowerLevel(Cache::Block &b) {
       this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
     }
   }
+}
+
+void Cache::writeBlockToVictim(Cache::Block &b) {
+  uint32_t addr = this->getAddr(b);
+  uint32_t id = this->victimCache->getReplacementBlockId(0, this->victimCache->policy.blockNum);
+  this->victimCache->blocks[id].tag = this->victimCache->getTag(addr);
+  this->victimCache->blocks[id].id = this->victimCache->getId(addr);
+  this->victimCache->blocks[id].valid = b.valid;
+  this->victimCache->blocks[id].modified = b.modified;
+  for (int i = 0; i < b.size; i++)
+    this->victimCache->blocks[id].data[i] = b.data[i];
 }
 
 bool Cache::isPowerOfTwo(uint32_t n) { return n > 0 && (n & (n - 1)) == 0; }
