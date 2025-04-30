@@ -1,3 +1,3 @@
-splitOrUnified,cacheSize,blockSize,associativity,missCount,totalCycles
+splitOrUnified,missCount,totalCycles
 Split,634,67584
 Unified,507,68141

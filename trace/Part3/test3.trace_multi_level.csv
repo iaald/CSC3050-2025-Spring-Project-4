@@ -1,4 +1,2 @@
-Level,NumReads,NumWrites,NumHits,NumMisses,MissRate,TotalCycles
-L1,77376,25792,102784,384,0.372208,106112
-L2,24576,2048,0,384,100,7680
-L3,24576,0,0,384,100,38400
+TraceFile,MissRate
+test3.trace,0.372208

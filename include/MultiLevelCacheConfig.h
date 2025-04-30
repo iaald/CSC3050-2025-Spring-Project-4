@@ -48,6 +48,7 @@ public:
         policy.missLatency = 8;
         return policy;
     }
+    
 };
 
 #endif

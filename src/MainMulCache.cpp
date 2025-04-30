@@ -117,12 +117,15 @@ public:
         std::string csvPath = std::string(traceFilePath) + "_multi_level.csv";
         std::ofstream csvFile(csvPath);
 
-        csvFile << "Level,NumReads,NumWrites,NumHits,NumMisses,MissRate,TotalCycles\n";
-
+        if (!isPreFetching && !isFIFO && !isVictimCache)
+            csvFile << "Level,NumReads,NumWrites,NumHits,NumMisses,MissRate,TotalCycles\n";
+        else
+            csvFile << "TraceFile,MissRate\n";
         outputCacheStats(csvFile, "L1");
-        outputCacheStats(csvFile, "L2");
-        outputCacheStats(csvFile, "L3");
-
+        if (!isPreFetching && !isFIFO && !isVictimCache) {
+            outputCacheStats(csvFile, "L2");
+            outputCacheStats(csvFile, "L3");
+        }
         csvFile.close();
         printf("\nResults have been written to %s\n", csvPath.c_str());
     }
@@ -142,16 +145,21 @@ private:
         default:
             throw std::runtime_error("Invalid cache level");
         }
+        std::string csvPath = std::string(traceFilePath);
+        std::string csvFileName(csvPath.end() - 11, csvPath.end());
         float missRate = static_cast<float>(stats.numMiss) /
                         (stats.numHit + stats.numMiss) * 100;
-
-        csvFile << level << ","
-                << stats.numRead << ","
-                << stats.numWrite << ","
-                << stats.numHit << ","
-                << stats.numMiss << ","
-                << missRate << ","
-                << stats.totalCycles << "\n";
+        if (!isPreFetching && !isFIFO && !isVictimCache)
+            csvFile << level << ","
+                    << stats.numRead << ","
+                    << stats.numWrite << ","
+                    << stats.numHit << ","
+                    << stats.numMiss << ","
+                    << missRate << ","
+                    << stats.totalCycles << "\n";
+        else
+            csvFile << csvFileName << ","
+                    << missRate << "\n";
     }
 };
 

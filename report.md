@@ -104,3 +104,48 @@ By analyzing the data, we can discover the following several phenomena:
 
 ### 4.2 Analysis of Performance Differences between matmul1, 2, 3
 
+The performance of matrix multiplication implementations (matmul1, matmul2, matmul3) is dictated by their memory access patterns and how well they exploit spatial locality in a row-major storage system. Below is a concise comparison:
+
+### **1. matmul3 (`jki` order) - Worst Performance**
+- **Inner Loop**: Iterates over `i`, accessing `C[i][j]` and `A[i][k]`.
+- **Access Pattern**:
+  - **Column-wise access** for both `C` and `A` (stride = `n * sizeof(double)`).
+  - Poor spatial locality due to large strides in row-major storage.
+- **Impact**:
+  - **70.72% Miss Rate, 6.8M Cycles**
+  - Nearly every access misses the cache, as two matrices suffer column-wise traversal in the inner loop.
+
+---
+
+### **2. matmul1 (`ijk` with scalar `cij`) - Moderate Performance**
+- **Inner Loop**: Iterates over `k`, accessing `A[i][k]` (row) and `B[k][j]` (column).
+- **Access Pattern**:
+  - **Good**: `A` is accessed row-wise (stride 1).
+  - **Poor**: `B` is accessed column-wise (large stride).
+- **Scalar `cij`**: Reduces redundant writes to `C` (temporal locality), but `B`’s column access dominates performance.
+- **Impact**:
+  - **51.41% Miss Rate, 2.4M Cycles**
+  - Bottlenecked by `B`’s poor spatial locality.
+
+---
+
+### **3. matmul2 (`kij` order) - Best Performance**
+- **Inner Loop**: Iterates over `j`, accessing `C[i][j]` and `B[k][j]`.
+- **Access Pattern**:
+  - **Row-wise access** for both `C` and `B` (stride 1).
+  - Excellent spatial locality in the inner loop.
+- **Outer Loop**: `A[i][k]` is column-wise (poor locality), but this is overshadowed by efficient inner-loop accesses.
+- **Impact**:
+  - **6.48% Miss Rate, 1.5M Cycles**
+  - Inner-loop stride-1 accesses dominate, minimizing cache misses.
+
+---
+
+### **Key Takeaways**
+- **Spatial Locality**: Inner-loop stride-1 accesses maximize cache efficiency.
+- **Row-Major Storage**: Column-wise access (large stride) leads to cache thrashing.
+- **Hierarchy of Importance**:
+  - Inner-loop access patterns > outer-loop patterns.
+  - Two stride-1 accesses (matmul2) outperform one good/one poor (matmul1) and two poor (matmul3).
+
+**Conclusion**: Optimizing memory access patterns for spatial locality is critical. matmul2’s design ensures two stride-1 accesses in the inner loop, making it **3–5x faster** than alternatives with poor locality.

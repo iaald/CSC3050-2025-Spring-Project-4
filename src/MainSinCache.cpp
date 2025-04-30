@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
 
   // Open CSV file and write header
   std::ofstream csvFile(std::string(traceFilePath) + ".csv");
-  csvFile << "splitOrUnified,cacheSize,blockSize,associativity,missCount,totalCycles\n";
+  csvFile << "splitOrUnified,missCount,totalCycles\n";
 
   runSplit(csvFile, 8 * 1024, 64, 1);
   runUnified(csvFile, 16 * 1024, 64, 1);

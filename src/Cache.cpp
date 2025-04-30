@@ -248,13 +248,16 @@ void Cache::loadBlockFromLowerLevel(uint32_t addr, uint32_t *cycles) {
       if (cycles) *cycles = 100;
     } else {
       b.data[i - blockAddrBegin] = this->lowerCache->getByte(i, cycles);
+      this->lowerCache->statistics.numRead--;
       if (i != blockAddrBegin) {
         this->lowerCache->statistics.numHit--;
         this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
       }
     }
   }
-
+  if(this->lowerCache){
+    this->lowerCache->statistics.numRead++;
+  }
   // Find replace block
   uint32_t id = this->getId(addr);
   uint32_t blockIdBegin = id * this->policy.associativity;
@@ -306,6 +309,7 @@ void Cache::writeBlockToLowerLevel(Cache::Block &b) {
   } else {
     for (uint32_t i = 0; i < b.size; ++i) {
       this->lowerCache->setByte(addrBegin + i, b.data[i], nullptr);
+      this->lowerCache->statistics.numWrite--;
       this->lowerCache->statistics.numHit--;
       this->lowerCache->statistics.totalCycles -= this->lowerCache->policy.hitLatency;
     }
